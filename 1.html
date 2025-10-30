@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор розыгрышей</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: filter 0.5s ease;
+        }
+        
+        .container.blurred {
+            filter: blur(5px) brightness(0.7);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #fd746c, #ff9068);
+        }
+        
+        .participants-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .participant-item {
+            padding: 10px 15px;
+            background: #e9ecef;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* Стили для полноэкранного розыгрыша */
+        .draw-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .draw-overlay.active {
+            display: flex;
+        }
+        
+        .roulette-wheel {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            margin: 20px 0;
+            font-size: 2.5em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 50px rgba(255,215,0,0.3);
+            min-width: 400px;
+            min-height: 150px;
+            text-align: center;
+        }
+        
+        .winner-item {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            padding: 20px 30px;
+            margin: 15px 0;
+            border-radius: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            box-shadow: 0 10px 25px rgba(255,215,0,0.4);
+            animation: reveal 0.5s ease-out;
+            text-align: center;
+        }
+        
+        @keyframes reveal {
+            from {
+                opacity: 0;
+                transform: scale(0.8) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .winner-place {
+            font-size: 0.8em;
+            color: #666;
+            margin-right: 10px;
+        }
+        
+        .draw-progress {
+            margin: 20px 0;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #ffd700;
+            text-align: center;
+        }
+        
+        .winners-container {
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .close-draw {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+            z-index: 1001;
+        }
+        
+        .close-draw:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .draw-title {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #ffd700;
+            text-align: center;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .roulette-spin {
+            animation: spin 0.1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <h1>🎪 Генератор розыгрышей</h1>
+            <p>Халяльные розыгрыши сертификатов Wildberries и Ozon</p>
+        </div>
+        
+        <div class="content">
+            <div class="panel">
+                <h2>📝 Добавление участников</h2>
+                
+                <div class="input-group">
+                    <label for="participantNumber">Номерок участника:</label>
+                    <input type="text" id="participantNumber" placeholder="Например: 777, 11.09.2001, A745BB...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="winnersCount">Количество победителей:</label>
+                    <input type="number" id="winnersCount" value="3" min="1" max="10">
+                </div>
+                
+                <button class="btn" onclick="addParticipant()">➕ Добавить номерок</button>
+                
+                <div class="participants-list" id="participantsList">
+                    <!-- Список участников будет здесь -->
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="clearAll()">🗑️ Очистить все</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🎰 Проведение розыгрыша</h2>
+                
+                <button class="btn" id="startBtn" onclick="startDraw()">🎲 Начать розыгрыш!</button>
+                
+                <div class="winners-section" id="winnersSection">
+                    <!-- Победители будут здесь -->
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalParticipants">0</div>
+                        <div class="stat-label">Участников</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="winnersCountDisplay">3</div>
+                        <div class="stat-label">Победителей</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Полноэкранный режим розыгрыша -->
+    <div class="draw-overlay" id="drawOverlay">
+        <button class="close-draw" onclick="closeDraw()">✕ Закрыть</button>
+        <div class="draw-title">🎰 РОЗЫГРЫШ НАЧАЛСЯ!</div>
+        
+        <div class="roulette-wheel" id="rouletteWheel">
+            Готовимся к розыгрышу...
+        </div>
+        
+        <div class="draw-progress" id="drawProgress"></div>
+        
+        <div class="winners-container" id="overlayWinners">
+            <!-- Победители будут появляться здесь -->
+        </div>
+    </div>
+
+    <script>
+        let participants = [];
+        let winnersCount = 3;
+        let isDrawing = false;
+        let currentWinnerIndex = 0;
+        let winners = [];
+        let spinInterval;
+
+        function updateDisplays() {
+            const participantsList = document.getElementById('participantsList');
+            participantsList.innerHTML = '';
+            
+            participants.forEach((participant, index) => {
+                const participantElement = document.createElement('div');
+                participantElement.className = 'participant-item';
+                participantElement.innerHTML = `
+                    <span>${participant}</span>
+                    <button class="remove-btn" onclick="removeParticipant(${index})">×</button>
+                `;
+                participantsList.appendChild(participantElement);
+            });
+            
+            document.getElementById('totalParticipants').textContent = participants.length;
+            document.getElementById('winnersCountDisplay').textContent = winnersCount;
+        }
+
+        function addParticipant() {
+            const input = document.getElementById('participantNumber');
+            const number = input.value.trim();
+            
+            if (number === '') {
+                alert('Введите номерок участника');
+                return;
+            }
+            
+            if (participants.includes(number)) {
+                alert('Этот номерок уже занят! Выберите другой.');
+                return;
+            }
+            
+            participants.push(number);
+            input.value = '';
+            updateDisplays();
+        }
+
+        function removeParticipant(index) {
+            participants.splice(index, 1);
+            updateDisplays();
+        }
+
+        function clearAll() {
+            if (confirm('Вы уверены, что хотите очистить список участников?')) {
+                participants = [];
+                winners = [];
+                currentWinnerIndex = 0;
+                document.getElementById('winnersSection').innerHTML = '';
+                document.getElementById('overlayWinners').innerHTML = '';
+                updateDisplays();
+            }
+        }
+
+        function startDraw() {
+            if (isDrawing) return;
+            
+            const winnersCountInput = document.getElementById('winnersCount');
+            winnersCount = parseInt(winnersCountInput.value);
+            
+            if (participants.length === 0) {
+                alert('Добавьте хотя бы одного участника!');
+                return;
+            }
+            
+            if (winnersCount > participants.length) {
+                alert('Количество победителей не может быть больше количества участников!');
+                return;
+            }
+            
+            // Размываем только основной контейнер, а не весь body
+            document.getElementById('mainContainer').classList.add('blurred');
+            document.getElementById('drawOverlay').classList.add('active');
+            
+            isDrawing = true;
+            
+            // Создаем копию массива участников для перемешивания
+            const shuffled = [...participants].sort(() => Math.random() - 0.5);
+            winners = shuffled.slice(0, winnersCount);
+            currentWinnerIndex = 0;
+            
+            // Очищаем предыдущих победителей
+            document.getElementById('overlayWinners').innerHTML = '';
+            document.getElementById('drawProgress').innerHTML = `Определяем победителя 1 из ${winnersCount}...`;
+            document.getElementById('rouletteWheel').innerHTML = 'Готовимся к розыгрышу...';
+            
+            // Запускаем первый розыгрыш через небольшую паузу
+            setTimeout(() => {
+                startNextWinner();
+            }, 1000);
+        }
+
+        function startNextWinner() {
+            if (currentWinnerIndex >= winnersCount) {
+                endDraw();
+                return;
+            }
+            
+            const rouletteWheel = document.getElementById('rouletteWheel');
+            const drawProgress = document.getElementById('drawProgress');
+            
+            drawProgress.innerHTML = `Определяем победителя ${currentWinnerIndex + 1} из ${winnersCount}...`;
+            
+            // Анимация рулетки
+            let spinCount = 0;
+            const maxSpins = 30;
+            spinInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * participants.length);
+                rouletteWheel.innerHTML = `<div class="roulette-spin">${participants[randomIndex]}</div>`;
+                spinCount++;
+                
+                if (spinCount >= maxSpins) {
+                    clearInterval(spinInterval);
+                    setTimeout(() => {
+                        revealWinner();
+                    }, 500);
+                }
+            }, 100);
+        }
+
+        function revealWinner() {
+            const winner = winners[currentWinnerIndex];
+            const overlayWinners = document.getElementById('overlayWinners');
+            const rouletteWheel = document.getElementById('rouletteWheel');
+            
+            // Показываем победителя
+            rouletteWheel.innerHTML = `🎉 ${winner} 🎉`;
+            rouletteWheel.style.background = 'linear-gradient(135deg, #ffd700, #ffed4e)';
+            rouletteWheel.style.color = '#2c3e50';
+            
+            // Добавляем победителя в список
+            const winnerElement = document.createElement('div');
+            winnerElement.className = 'winner-item';
+            winnerElement.innerHTML = `
+                <span class="winner-place">${getPlaceText(currentWinnerIndex + 1)}</span>${winner}
+            `;
+            overlayWinners.appendChild(winnerElement);
+            
+            // Прокручиваем к новому победителю
+            winnerElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            currentWinnerIndex++;
+            
+            if (currentWinnerIndex < winnersCount) {
+                // Возвращаем стандартный стиль рулетки и продолжаем
+                setTimeout(() => {
+                    rouletteWheel.style.background = 'linear-gradient(135deg, #34495e, #2c3e50)';
+                    rouletteWheel.style.color = 'white';
+                    startNextWinner();
+                }, 2000);
+            } else {
+                endDraw();
+            }
+        }
+
+        function endDraw() {
+            isDrawing = false;
+            document.getElementById('drawProgress').innerHTML = '🎊 Все победители определены!';
+            document.getElementById('rouletteWheel').innerHTML = '🎉 РОЗЫГРЫШ ЗАВЕРШЕН!';
+            
+            // Обновляем основную панель победителями
+            const overlayWinners = document.getElementById('overlayWinners');
+            const winnersSection = document.getElementById('winnersSection');
+            winnersSection.innerHTML = overlayWinners.innerHTML;
+        }
+
+        function getPlaceText(place) {
+            switch(place) {
+                case 1: return '🥇 1 МЕСТО: ';
+                case 2: return '🥈 2 МЕСТО: ';
+                case 3: return '🥉 3 МЕСТО: ';
+                default: return `${place} МЕСТО: `;
+            }
+        }
+
+        function closeDraw() {
+            if (spinInterval) {
+                clearInterval(spinInterval);
+            }
+            document.getElementById('mainContainer').classList.remove('blurred');
+            document.getElementById('drawOverlay').classList.remove('active');
+            isDrawing = false;
+        }
+
+        // Инициализация
+        document.getElementById('winnersCount').addEventListener('input', function() {
+            winnersCount = parseInt(this.value);
+            updateDisplays();
+        });
+
+        document.getElementById('participantNumber').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addParticipant();
+            }
+        });
+
+        updateDisplays();
+    </script>
+</body>
+</html>
